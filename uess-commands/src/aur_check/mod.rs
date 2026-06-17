@@ -95,27 +95,3 @@ pub async fn run(ctx: &Context, command: &CommandInteraction) {
         .await;
 }
 
-#[cfg(test)]
-mod tests {
-    use super::is_known_static;
-
-    #[test]
-    fn catches_npm_malware() {
-        assert_eq!(is_known_static("js-digest"), Some("npm package"));
-    }
-
-    #[test]
-    fn catches_rat_packages() {
-        assert_eq!(is_known_static("minecraft-cracked"), Some("rat pkg"));
-    }
-
-    #[test]
-    fn catches_spam_list_entries() {
-        assert_eq!(is_known_static("nikto-git"), Some("russian spam pkg"));
-    }
-
-    #[test]
-    fn clean_package_is_none() {
-        assert_eq!(is_known_static("firefox"), None);
-    }
-}

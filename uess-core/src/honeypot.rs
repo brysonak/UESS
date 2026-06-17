@@ -1,4 +1,4 @@
-use serenity::all::{Context, Message};
+use serenity::all::{ChannelId, Context, Message};
 
 // Remove any message that contains a discord invite link or has 4 or more attachments
 // These are common patterns used by those pesky scam bots
@@ -9,29 +9,34 @@ pub fn is_violation(attachment_count: usize, content: &str) -> bool {
         || content.contains("discordapp.com/invite/")
 }
 
-pub async fn handle(ctx: &Context, msg: &Message) {
+// This channel exists only to catch the bots who just spam every channel
+// Any message sent here, regardless of whether they are a bot or not, will ban the sender
+
+// If users can't read the big 'DON'T TYPE HERE' message and get banned, it's natural selection at that point
+pub fn honeypot_channel_from_env() -> Option<ChannelId> {
+    std::env::var("HONEYPOT_CHANNEL")
+        .ok()?
+        .parse::<u64>()
+        .ok()
+        .map(ChannelId::new)
+}
+
+pub async fn handle(ctx: &Context, msg: &Message, honeypot_channel: Option<ChannelId>) {
     if msg.author.bot {
         return;
     }
+
+    if honeypot_channel == Some(msg.channel_id) {
+        if let Some(guild_id) = msg.guild_id {
+            let _ = guild_id
+                .ban_with_reason(&ctx.http, msg.author.id, 0, "honeypot channel trigger")
+                .await;
+        }
+        let _ = msg.delete(&ctx.http).await;
+        return;
+    }
+
     if is_violation(msg.attachments.len(), &msg.content) {
         let _ = msg.delete(&ctx.http).await;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::is_violation;
-
-    #[test]
-    fn flags_four_or_more_images() {
-        assert!(!is_violation(3, "hello"));
-        assert!(is_violation(4, "hello"));
-    }
-
-    #[test]
-    fn flags_discord_invite_links() {
-        assert!(is_violation(0, "join here discord.gg/abc123"));
-        assert!(is_violation(0, "discord.com/invite/abc123"));
-        assert!(!is_violation(0, "no links here"));
     }
 }

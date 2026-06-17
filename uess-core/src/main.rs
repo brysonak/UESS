@@ -1,12 +1,14 @@
 mod honeypot;
 
 use serenity::all::{
-    Context, EventHandler, GatewayIntents, GuildId, Interaction, Message, Ready,
+    ChannelId, Context, EventHandler, GatewayIntents, GuildId, Interaction, Message, Ready,
 };
 use serenity::async_trait;
 use serenity::Client;
 
-struct Handler;
+struct Handler {
+    honeypot_channel: Option<ChannelId>,
+}
 
 #[async_trait]
 impl EventHandler for Handler {
@@ -30,7 +32,7 @@ impl EventHandler for Handler {
     }
 
     async fn message(&self, ctx: Context, msg: Message) {
-        honeypot::handle(&ctx, &msg).await;
+        honeypot::handle(&ctx, &msg, self.honeypot_channel).await;
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
@@ -44,13 +46,14 @@ impl EventHandler for Handler {
 async fn main() {
     dotenvy::dotenv().ok();
     let token = std::env::var("TOKEN").expect("TOKEN not set in .env");
+    let honeypot_channel = honeypot::honeypot_channel_from_env();
 
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
 
     let mut client = Client::builder(&token, intents)
-        .event_handler(Handler)
+        .event_handler(Handler { honeypot_channel })
         .await
         .expect("failed to build client");
 
