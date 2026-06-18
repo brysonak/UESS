@@ -2,6 +2,7 @@ use serenity::all::{
     CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
     CreateInteractionResponse, CreateInteractionResponseMessage,
 };
+use std::time::Duration;
 use tokio::sync::OnceCell;
 
 const NPM_MALWARE: &[&str] = &["atomic-lockfile", "js-digest", "lockfile-js", "nextfile-js"];
@@ -25,40 +26,49 @@ static AUR_REMOTE: OnceCell<Vec<String>> = OnceCell::const_new();
 
 fn is_known_static(pkg: &str) -> Option<&'static str> {
     if NPM_MALWARE.contains(&pkg) {
-        return Some("npm package");
+        return Some("NPM Package");
     }
     if RAT_PACKAGES.contains(&pkg) {
-        return Some("rat pkg");
+        return Some("Rat Package");
     }
     if SPAM_LIST.lines().any(|l| l.trim() == pkg) {
-        return Some("russian spam pkg");
+        return Some("Russian Spam Package");
     }
     None
 }
 
-async fn aur_remote_list() -> &'static Vec<String> {
+async fn aur_remote_list() -> Result<&'static Vec<String>, String> {
     AUR_REMOTE
-        .get_or_init(|| async {
-            let body = match reqwest::get(AUR_MALWARE_URL).await {
-                Ok(resp) => resp.text().await.unwrap_or_default(),
-                Err(_) => String::new(),
-            };
-            body.lines()
+        .get_or_try_init(|| async {
+            let client = reqwest::Client::builder()
+                .timeout(Duration::from_secs(10))
+                .build()
+                .map_err(|e| e.to_string())?;
+
+            let body = client
+                .get(AUR_MALWARE_URL)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?
+                .text()
+                .await
+                .map_err(|e| e.to_string())?;
+
+            Ok(body
+                .lines()
                 .map(|l| l.trim().to_lowercase())
                 .filter(|l| !l.is_empty())
-                .collect()
+                .collect())
         })
         .await
 }
 
-async fn check(pkg: &str) -> Option<&'static str> {
+async fn check(pkg: &str) -> Result<Option<&'static str>, String> {
     if let Some(kind) = is_known_static(pkg) {
-        return Some(kind);
+        return Ok(Some(kind));
     }
-    if aur_remote_list().await.iter().any(|l| l == pkg) {
-        return Some("aur malware");
-    }
-    None
+    let remote = aur_remote_list().await?;
+    Ok(remote.iter().any(|l| l == pkg).then_some("aur malware"))
 }
 
 pub fn register() -> CreateCommand {
@@ -81,10 +91,11 @@ pub async fn run(ctx: &Context, command: &CommandInteraction) {
         .to_lowercase();
 
     let content = match check(&pkg).await {
-        Some(kind) => format!(
-            "Package is malicious. Type: {kind}\nIf you have this package installed on your system, please refer to [this](https://github.com/lenucksi/aur-malware-check#what-to-do-if-infected) immediately"
+        Ok(Some(kind)) => format!(
+            "Package is malicious. Type: {kind}\nIf you have this package installed on your system, please refer to [this](https://discord.com/channels/868690424506773604/868692029616582666/1517282537527971860) immediately"
         ),
-        None => format!("`{pkg}` is not in any known malware list."),
+        Ok(None) => format!("`{pkg}` is not in any known malware list."),
+        Err(e) => format!("Could not reach the remote malware list, only checked local lists, error: {e}"),
     };
 
     let _ = command
@@ -94,4 +105,3 @@ pub async fn run(ctx: &Context, command: &CommandInteraction) {
         )
         .await;
 }
-
