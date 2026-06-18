@@ -45,10 +45,18 @@ impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
         honeypot::handle(&ctx, &msg, self.honeypot_channel).await;
 
-        if !msg.author.bot {
-            if let Some(reply) = cat_reply(&msg.content) {
-                let _ = msg.channel_id.say(&ctx.http, reply).await;
-            }
+        if msg.author.bot {
+            return;
+        }
+
+        let trimmed = msg.content.trim();
+        if let Some(rest) = trimmed.strip_prefix("?compile") {
+            uess_commands::compile::run(&ctx, &msg, rest.trim()).await;
+            return;
+        }
+
+        if let Some(reply) = cat_reply(&msg.content) {
+            let _ = msg.channel_id.say(&ctx.http, reply).await;
         }
     }
 

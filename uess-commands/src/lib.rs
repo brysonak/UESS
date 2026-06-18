@@ -1,4 +1,5 @@
 pub mod aur_check;
+pub mod compile;
 
 use serenity::all::{CommandInteraction, Context, CreateCommand};
 
