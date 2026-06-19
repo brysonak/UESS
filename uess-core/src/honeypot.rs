@@ -22,17 +22,20 @@ pub fn honeypot_channel_from_env() -> Option<ChannelId> {
 }
 
 pub async fn handle(ctx: &Context, msg: &Message, honeypot_channel: Option<ChannelId>) {
-    if msg.author.bot {
+    if honeypot_channel == Some(msg.channel_id) {
+        // You pesky shits will try and get bots banned, not happening
+        if !msg.author.bot {
+            if let Some(guild_id) = msg.guild_id {
+                let _ = guild_id
+                    .ban_with_reason(&ctx.http, msg.author.id, 0, "honeypot channel trigger")
+                    .await;
+            }
+        }
+        let _ = msg.delete(&ctx.http).await;
         return;
     }
 
-    if honeypot_channel == Some(msg.channel_id) {
-        if let Some(guild_id) = msg.guild_id {
-            let _ = guild_id
-                .ban_with_reason(&ctx.http, msg.author.id, 0, "honeypot channel trigger")
-                .await;
-        }
-        let _ = msg.delete(&ctx.http).await;
+    if msg.author.bot {
         return;
     }
 
