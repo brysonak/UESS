@@ -68,7 +68,7 @@ async fn check(pkg: &str) -> Result<Option<&'static str>, String> {
         return Ok(Some(kind));
     }
     let remote = aur_remote_list().await?;
-    Ok(remote.iter().any(|l| l == pkg).then_some("aur malware"))
+    Ok(remote.iter().any(|l| l == pkg).then_some("AUR Malware"))
 }
 
 pub fn register() -> CreateCommand {
@@ -92,7 +92,7 @@ pub async fn run(ctx: &Context, command: &CommandInteraction) {
 
     let content = match check(&pkg).await {
         Ok(Some(kind)) => format!(
-            "Package is malicious. Type: {kind}\nIf you have this package installed on your system, please refer to [this](https://discord.com/channels/868690424506773604/868692029616582666/1517282537527971860) immediately"
+            "`{pkg}` is malicious. Type: {kind}\nIf you have this package installed on your system, please refer to [this](https://discord.com/channels/868690424506773604/868692029616582666/1517282537527971860) immediately"
         ),
         Ok(None) => format!("`{pkg}` is not in any known malware list."),
         Err(e) => format!("Could not reach the remote malware list, only checked local lists, error: {e}"),
