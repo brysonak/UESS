@@ -1,4 +1,5 @@
 mod honeypot;
+mod qotd;
 
 use serenity::all::{
     ChannelId, Context, EventHandler, GatewayIntents, GuildId, Interaction, Message, Ready,
@@ -33,12 +34,21 @@ impl EventHandler for Handler {
                 let _ = GuildId::new(id)
                     .set_commands(&ctx.http, commands)
                     .await;
-                return;
+            } else {
+                for command in commands {
+                    let _ = serenity::all::Command::create_global_command(&ctx.http, command).await;
+                }
+            }
+        } else {
+            for command in commands {
+                let _ = serenity::all::Command::create_global_command(&ctx.http, command).await;
             }
         }
 
-        for command in commands {
-            let _ = serenity::all::Command::create_global_command(&ctx.http, command).await;
+        if let Some(channel) = qotd::general_chat_from_env() {
+            tokio::spawn(qotd::run(ctx, channel));
+        } else {
+            eprintln!("Set the env correctly dumbass");
         }
     }
 
