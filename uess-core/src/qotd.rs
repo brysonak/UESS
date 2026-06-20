@@ -6,6 +6,10 @@ use serde::Deserialize;
 const QOTD_URL: &str = "https://api.harys.is-a.dev/v1/qotd";
 const POST_HOUR_EST: u32 = 10;
 
+// Before anybody goes ape shit telling me to 'not hardcode API keys,' this one is public
+// https://open-api.js.org/api-key/
+const QOTD_API_KEY: &str = "NZCt6JqttVGwkzERMGxn8FjcsHVbvPku";
+
 #[derive(Deserialize)]
 struct QotdResponse {
     questions: Vec<String>,
@@ -20,14 +24,26 @@ pub fn general_chat_from_env() -> Option<ChannelId> {
 }
 
 async fn fetch_question() -> Result<String, String> {
-    let resp: QotdResponse = reqwest::get(QOTD_URL)
-        .await
-        .map_err(|e| e.to_string())?
-        .json()
+    let resp = reqwest::Client::new()
+        .get(QOTD_URL)
+        .header("Authorization", QOTD_API_KEY)
+        .send()
         .await
         .map_err(|e| e.to_string())?;
 
-    resp.questions.into_iter().next().ok_or_else(|| "empty questions list".into())
+    let status = resp.status();
+    let body = resp.text().await.map_err(|e| e.to_string())?;
+
+    if !status.is_success() {
+        return Err(format!("status {status}, body: {body}"));
+    }
+
+    serde_json::from_str::<QotdResponse>(&body)
+        .map_err(|e| format!("{e}, body: {body}"))?
+        .questions
+        .into_iter()
+        .next()
+        .ok_or_else(|| "empty questions list".into())
 }
 
 async fn post(ctx: &Context, channel: ChannelId) {
