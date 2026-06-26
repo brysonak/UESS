@@ -71,3 +71,5 @@ ultimatevocalremovergui-git
 vaping
 vim-railscasts
 zenta-git
+peksystray
+obd-auto-doctor
