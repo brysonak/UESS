@@ -20,7 +20,7 @@ const RAT_PACKAGES: &[&str] = &[
 const SPAM_LIST: &str = include_str!("spam.txt");
 
 const AUR_MALWARE_URL: &str =
-    "https://raw.githubusercontent.com/lenucksi/aur-malware-check/refs/heads/master/package_list.txt";
+    "https://raw.githubusercontent.com/lenucksi/aur-malware-check/refs/heads/master/data/campaigns/aur-infected/packages.txt";
 
 static AUR_REMOTE: OnceCell<Vec<String>> = OnceCell::const_new();
 
